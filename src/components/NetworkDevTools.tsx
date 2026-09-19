@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { NetworkDevToolsProps, NetworkEvent, FilterType, MethodFilter } from '../types/network';
 import { useNetworkEvents } from '../hooks/useNetworkEvents';
 import { useNetworkInterceptors } from '../hooks/useNetworkInterceptors';
@@ -24,6 +24,34 @@ export const NetworkDevTools: React.FC<NetworkDevToolsProps> = (props) => {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
   const [methodFilter, setMethodFilter] = useState<MethodFilter>('ALL');
+  
+  // Dragging state for the launcher
+  const [launcherPos, setLauncherPos] = useState<{ x: number; y: number }>(() => {
+    if (position === 'bottom-left') return { x: 20, y: window.innerHeight - 68 };
+    return { x: window.innerWidth - 68, y: window.innerHeight - 68 };
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const launcherRef = useRef<HTMLButtonElement>(null);
+
+  // Panel position follows the launcher
+  const panelPos = useMemo(() => {
+    const padding = 60;
+    const panelWidth = 900;
+    const panelHeight = 600;
+    
+    // Position panel above and to the left of the launcher
+    let x = launcherPos.x - panelWidth + 48;
+    let y = launcherPos.y - panelHeight - padding;
+    
+    // Keep within viewport bounds
+    if (x < 10) x = 10;
+    if (y < 10) y = 10;
+    if (x + panelWidth > window.innerWidth - 10) x = window.innerWidth - panelWidth - 10;
+    if (y + panelHeight > window.innerHeight - 10) y = window.innerHeight - panelHeight - 10;
+    
+    return { x, y };
+  }, [launcherPos]);
 
   const events = useNetworkEvents();
   const { clearEvents } = useNetworkInterceptors({
@@ -78,6 +106,53 @@ export const NetworkDevTools: React.FC<NetworkDevToolsProps> = (props) => {
   const errorCount = events.filter((e) => e.state === 'error').length;
   const pendingCount = events.filter((e) => e.state === 'pending').length;
 
+  // Mouse event handlers for dragging
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      
+      const newX = e.clientX - dragOffset.current.x;
+      const newY = e.clientY - dragOffset.current.y;
+      
+      // Constrain to viewport
+      const maxX = window.innerWidth - 48;
+      const maxY = window.innerHeight - 48;
+      
+      setLauncherPos({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY)),
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!launcherRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const rect = launcherRef.current.getBoundingClientRect();
+    dragOffset.current = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+    setIsDragging(true);
+  };
+
   const handleClear = () => {
     clearEvents();
     setSelectedEventId(null);
@@ -87,11 +162,56 @@ export const NetworkDevTools: React.FC<NetworkDevToolsProps> = (props) => {
     setSelectedEventId(id);
   };
 
+  const launcherStyle: React.CSSProperties = {
+    position: 'fixed',
+    left: launcherPos.x,
+    top: launcherPos.y,
+    width: '48px',
+    height: '48px',
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    border: 'none',
+    cursor: isDragging ? 'grabbing' : 'grab',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: isDragging ? '0 8px 20px rgba(102, 126, 234, 0.6)' : '0 4px 14px rgba(102, 126, 234, 0.4)',
+    transform: isDragging ? 'scale(1.05)' : 'scale(1)',
+    color: 'white',
+    fontSize: '20px',
+    zIndex: 99999,
+    outline: 'none',
+    padding: 0,
+    WebkitUserSelect: 'none',
+    userSelect: 'none',
+    transition: isDragging ? 'none' : 'transform 0.2s ease, box-shadow 0.2s ease',
+  };
+
+  const panelStyle: React.CSSProperties = {
+    position: 'fixed',
+    left: panelPos.x,
+    top: panelPos.y,
+    width: 'min(900px, calc(100vw - 40px))',
+    height: 'min(600px, calc(100vh - 100px))',
+    background: '#1a1b2e',
+    border: '1px solid #2d2f45',
+    borderRadius: '12px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    color: '#e2e8f0',
+    zIndex: 99998,
+  };
+
   if (!isOpen) {
     return (
       <button
-        className={`rndt-launcher rndt-launcher--${position}`}
-        onClick={() => setIsOpen(true)}
+        ref={launcherRef}
+        style={launcherStyle}
+        onMouseDown={handleMouseDown}
+        onClick={() => !isDragging && setIsOpen(true)}
         title="Network DevTools"
       >
         ⚡
@@ -106,7 +226,26 @@ export const NetworkDevTools: React.FC<NetworkDevToolsProps> = (props) => {
 
   return (
     <>
-      <div className={`rndt-panel rndt-panel--${position}`}>
+      {/* Draggable Launcher */}
+      <button
+        ref={launcherRef}
+        style={launcherStyle}
+        onMouseDown={handleMouseDown}
+        onClick={(e) => {
+          if (!isDragging) setIsOpen(false);
+        }}
+        title="Network DevTools"
+      >
+        ⚡
+        {(errorCount > 0 || pendingCount > 0) && (
+          <span className="rndt-launcher__badge">
+            {errorCount > 0 ? errorCount : pendingCount}
+          </span>
+        )}
+      </button>
+
+      {/* Panel */}
+      <div style={panelStyle}>
         {/* Header */}
         <div className="rndt-header">
           <div className="rndt-header__title">
