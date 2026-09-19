@@ -63,7 +63,7 @@ export default function DevTools() {
 This repository includes a playground to test all features:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/react-network-devtools.git
+git clone https://github.com/divyesh123-jain/react-network-devtools.git
 cd react-network-devtools
 npm install
 npm run dev
@@ -134,7 +134,7 @@ To test this package in your own project before npm publish:
 ### Option 1: Install via Git
 
 ```bash
-npm install github:YOUR_USERNAME/react-network-devtools
+npm install github:divyesh123-jain/react-network-devtools
 ```
 
 ### Option 2: Link Locally
@@ -167,7 +167,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📄 License
 
-MIT © Your Name
+MIT © Divyesh Jain
 
 ## 🐛 Known Limitations (v0.1)
 
