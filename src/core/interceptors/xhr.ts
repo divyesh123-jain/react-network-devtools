@@ -25,6 +25,11 @@ export function installXHRInterceptor(
   originalSend = XMLHttpRequest.prototype.send;
   originalSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
 
+  // Capture references to prevent race conditions during uninstall
+  const capturedOpen = originalOpen;
+  const capturedSend = originalSend;
+  const capturedSetRequestHeader = originalSetRequestHeader;
+
   XMLHttpRequest.prototype.open = function (
     this: XMLHttpRequest & { _rndt?: { id: string; method: string; url: string; headers: Record<string, string> } },
     method: string,
@@ -37,7 +42,7 @@ export function installXHRInterceptor(
       url: url.toString(),
       headers: {},
     };
-    return originalOpen!.apply(this, [method, url as string, ...rest] as Parameters<typeof XMLHttpRequest.prototype.open>);
+    return capturedOpen.apply(this, [method, url as string, ...rest] as Parameters<typeof XMLHttpRequest.prototype.open>);
   };
 
   XMLHttpRequest.prototype.setRequestHeader = function (
@@ -48,7 +53,7 @@ export function installXHRInterceptor(
     if (this._rndt && captureHeaders) {
       this._rndt.headers[name] = value;
     }
-    return originalSetRequestHeader!.call(this, name, value);
+    return capturedSetRequestHeader.call(this, name, value);
   };
 
   XMLHttpRequest.prototype.send = function (
@@ -60,7 +65,7 @@ export function installXHRInterceptor(
     const xhrData = this._rndt;
 
     if (!xhrData) {
-      return originalSend!.call(this, body);
+      return capturedSend.call(this, body);
     }
 
     const { id, method, url, headers } = xhrData;
@@ -167,7 +172,7 @@ export function installXHRInterceptor(
       });
     });
 
-    return originalSend!.call(this, body);
+    return capturedSend.call(this, body);
   };
 }
 

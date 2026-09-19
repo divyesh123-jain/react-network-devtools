@@ -20,6 +20,7 @@ export function installFetchInterceptor(
   if (typeof window === 'undefined') return;
 
   originalFetch = window.fetch;
+  const capturedFetch = originalFetch; // Capture reference to prevent race condition
   isInstalled = true;
 
   window.fetch = async function (...args: Parameters<typeof window.fetch>): Promise<Response> {
@@ -81,7 +82,7 @@ export function installFetchInterceptor(
     store.add(event);
 
     try {
-      const response = await originalFetch!.apply(window, args);
+      const response = await capturedFetch.apply(window, args);
       const endTime = performance.now();
       const duration = endTime - startTime;
 

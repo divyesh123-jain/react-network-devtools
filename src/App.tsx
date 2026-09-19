@@ -47,19 +47,16 @@ function App() {
 
   const handleSlowRequest = () =>
     makeRequest('slowRequest', async () => {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      try {
-        const res = await fetch(`${MOCK_BASE}/photos?_limit=50&_delay=3000`, {
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        const data = await res.json();
-        return `Slow response: ${data.length} photos`;
-      } catch (err) {
-        clearTimeout(timeout);
-        throw err;
+      // Simulate a slow request by fetching multiple endpoints sequentially
+      const start = performance.now();
+      const responses = [];
+      for (let i = 1; i <= 5; i++) {
+        const res = await fetch(`${MOCK_BASE}/posts?_limit=10&_page=${i}`);
+        responses.push(await res.json());
       }
+      const elapsed = performance.now() - start;
+      const totalItems = responses.reduce((sum, r) => sum + r.length, 0);
+      return `Slow response: ${totalItems} items in ${Math.round(elapsed)}ms`;
     });
 
   const handleErrorRequest = () =>

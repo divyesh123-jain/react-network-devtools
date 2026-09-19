@@ -20,7 +20,7 @@ export const NetworkDevTools: React.FC<NetworkDevToolsProps> = (props) => {
   } = props;
 
   const [isOpen, setIsOpen] = useState(defaultOpen);
-  const [selectedEvent, setSelectedEvent] = useState<NetworkEvent | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
   const [methodFilter, setMethodFilter] = useState<MethodFilter>('ALL');
@@ -34,6 +34,12 @@ export const NetworkDevTools: React.FC<NetworkDevToolsProps> = (props) => {
     captureHeaders,
     maskSensitiveData,
   });
+
+  // Look up the currently selected event from the store (always fresh data)
+  const selectedEvent: NetworkEvent | null = useMemo(() => {
+    if (!selectedEventId) return null;
+    return events.find((e: NetworkEvent) => e.id === selectedEventId) || null;
+  }, [events, selectedEventId]);
 
   // Filter events
   const filteredEvents = useMemo((): NetworkEvent[] => {
@@ -71,11 +77,14 @@ export const NetworkDevTools: React.FC<NetworkDevToolsProps> = (props) => {
 
   const errorCount = events.filter((e) => e.state === 'error').length;
   const pendingCount = events.filter((e) => e.state === 'pending').length;
-  const selectedEventId = selectedEvent ? selectedEvent.id : null;
 
   const handleClear = () => {
     clearEvents();
-    setSelectedEvent(null);
+    setSelectedEventId(null);
+  };
+
+  const handleSelectEvent = (id: string) => {
+    setSelectedEventId(id);
   };
 
   if (!isOpen) {
@@ -164,7 +173,7 @@ export const NetworkDevTools: React.FC<NetworkDevToolsProps> = (props) => {
         {selectedEvent ? (
           <RequestDetails
             event={selectedEvent}
-            onBack={() => setSelectedEvent(null)}
+            onBack={() => setSelectedEventId(null)}
             maskSensitive={maskSensitiveData}
           />
         ) : (
@@ -195,11 +204,7 @@ export const NetworkDevTools: React.FC<NetworkDevToolsProps> = (props) => {
                     event={evt}
                     isSelected={selectedEventId === evt.id}
                     slowThreshold={slowRequestThreshold}
-                    onClick={() => {
-                      const allEvents = getNetworkStore().getAll();
-                      const freshEvent = allEvents.find((e: NetworkEvent) => e.id === evt.id);
-                      setSelectedEvent(freshEvent || evt);
-                    }}
+                    onClick={() => handleSelectEvent(evt.id)}
                   />
                 ))
               )}

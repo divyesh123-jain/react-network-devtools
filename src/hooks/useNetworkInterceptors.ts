@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import { NetworkDevToolsProps } from '../types/network';
 import { installFetchInterceptor, uninstallFetchInterceptor } from '../core/interceptors/fetch';
 import { installXHRInterceptor, uninstallXHRInterceptor } from '../core/interceptors/xhr';
 import { getNetworkStore } from '../core/store/network-store';
 
 export function useNetworkInterceptors(props: NetworkDevToolsProps) {
-  const initialized = useRef(false);
-
   const {
     maxRequests = 500,
     maxBodySize = 1_000_000,
@@ -15,13 +13,10 @@ export function useNetworkInterceptors(props: NetworkDevToolsProps) {
   } = props;
 
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-
-    // Initialize store
+    // Initialize store with max requests limit
     getNetworkStore(maxRequests);
 
-    // Install interceptors
+    // Install interceptors (they have their own singleton guard)
     installFetchInterceptor(maxBodySize, captureBodies, captureHeaders);
     installXHRInterceptor(maxBodySize, captureBodies, captureHeaders);
 
